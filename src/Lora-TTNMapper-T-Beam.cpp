@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#define CFG_us915 1
+#define CFG_sx1276_radio 1
 #include <lmic.h>
 #include <hal/hal.h>
 #include <WiFi.h>
@@ -8,6 +11,8 @@
 
 // T-Beam specific hardware
 #define BUILTIN_LED 21
+
+void do_send(osjob_t* j);
 
 char s[32]; // used to sprintf for Serial output
 uint8_t txBuffer[9];
@@ -28,7 +33,7 @@ const unsigned TX_INTERVAL = 30;
 const lmic_pinmap lmic_pins = {
   .nss = 18,
   .rxtx = LMIC_UNUSED_PIN,
-  .rst = LMIC_UNUSED_PIN, // was "14,"
+  .rst = 23, // was "14,"
   .dio = {26, 33, 32},
 };
 
@@ -95,6 +100,12 @@ void onEvent (ev_t ev) {
     case EV_LINK_ALIVE:
       Serial.println(F("EV_LINK_ALIVE"));
       break;
+    case EV_SCAN_FOUND:
+      Serial.println(F("EV_SCAN_FOUND"));
+      break;
+    case EV_TXSTART:
+      Serial.println(F("EV_TXSTART"));
+      break;
     default:
       Serial.println(F("Unknown event"));
       break;
@@ -140,9 +151,10 @@ void setup() {
   os_init();
   // Reset the MAC state. Session and pending data transfers will be discarded.
   LMIC_reset();
-  
+  LMIC_startJoining();
   LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
-  
+
+#if defined(CFG_eu868)
   LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
   LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);      // g-band
   LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
@@ -152,7 +164,15 @@ void setup() {
   LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
   LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
   LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);      // g2-band
-
+  Serial.println("EU 868 bands");
+#else
+  // NA-US channels 0-71 are configured automatically
+  // but only one group of 8 should (a subband) should be active
+  // TTN recommends the second sub band, 1 in a zero based count.
+  // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
+  Serial.println("US 915 bands");
+  LMIC_selectSubBand(1);
+#endif
   // Disable link check validation
   LMIC_setLinkCheckMode(0);
 
@@ -165,7 +185,9 @@ void setup() {
   do_send(&sendjob);
   pinMode(BUILTIN_LED, OUTPUT);
   digitalWrite(BUILTIN_LED, LOW);
-  
+
+  Serial.print("Freq: ");
+  Serial.println(LMIC.freq);
 }
 
 void loop() {
