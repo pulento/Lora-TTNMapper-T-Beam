@@ -10,19 +10,16 @@ void gps::init()
 
 void gps::encode()
 {       
-    int data;
-    int previousMillis = millis();
+  int previousMillis = millis();
 
-    while((previousMillis + 1000) > millis())
-    {
-        while (GPSSerial.available() )
-        {
-            char data = GPSSerial.read();
-            tGps.encode(data);
-            //Serial.print(data);
-        }
+  while((previousMillis + 1000) > millis()) {
+    while (GPSSerial.available()) {
+      char data = GPSSerial.read();
+      tGps.encode(data);
+      //Serial.print(data);
     }
-     //Serial.println("");
+  }
+  //Serial.println("");
 }
 
 void gps::buildPacket(uint8_t txBuffer[9])
@@ -56,19 +53,17 @@ bool gps::checkGpsFix()
 {
   encode();
   if (tGps.location.isValid() && 
-      tGps.location.age() < 2000 &&
-      tGps.hdop.isValid() &&
-      tGps.hdop.value() <= 300 &&
-      tGps.hdop.age() < 2000 &&
-      tGps.altitude.isValid() && 
-      tGps.altitude.age() < 2000 )
+    tGps.location.age() < 2000 &&
+    tGps.hdop.isValid() &&
+    tGps.hdop.value() <= 300 &&
+    tGps.hdop.age() < 2000 &&
+    tGps.altitude.isValid() &&
+    tGps.altitude.age() < 2000 )
   {
-    Serial.println("Valid gps Fix.");
+    Serial.println("Valid GPS fix.");
     return true;
-  }
-  else
-  {
-     Serial.println("No gps Fix.");
+  } else {
+     Serial.println("No GPS fix.");
     // sprintf(t, "location valid: %i" , tGps.location.isValid());
     // Serial.println(t);
     // sprintf(t, "location age: %i" , tGps.location.age());

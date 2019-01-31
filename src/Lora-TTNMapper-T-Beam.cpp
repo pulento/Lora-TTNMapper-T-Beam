@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #define CFG_us915 1
 #define CFG_sx1276_radio 1
+#define LMIC_DEBUG_LEVEL 0
 #include <lmic.h>
 #include <hal/hal.h>
 #include <WiFi.h>
@@ -15,6 +16,7 @@
 void do_send(osjob_t* j);
 
 char s[32]; // used to sprintf for Serial output
+static uint8_t tstdata[] = "Hello, world!";
 uint8_t txBuffer[9];
 gps gps;
 
@@ -33,9 +35,19 @@ const unsigned TX_INTERVAL = 30;
 const lmic_pinmap lmic_pins = {
   .nss = 18,
   .rxtx = LMIC_UNUSED_PIN,
-  .rst = 23, // was "14,"
+  .rst = LMIC_UNUSED_PIN, // was "14,"
   .dio = {26, 33, 32},
 };
+
+void forceTxSingleChannelDr(int channel) {
+  for(int i=0; i<72; i++) { // For EU; for US use i<71
+    if(i != channel) {
+      LMIC_disableChannel(i);
+    }
+  }
+  // Set data rate (SF) and transmit power for uplink
+  LMIC_setDrTxpow(DR_SF7, 14);
+}
 
 void onEvent (ev_t ev) {
   switch (ev) {
@@ -115,22 +127,18 @@ void onEvent (ev_t ev) {
 void do_send(osjob_t* j) {  
 
   // Check if there is not a current TX/RX job running
-  if (LMIC.opmode & OP_TXRXPEND)
-  {
+  if (LMIC.opmode & OP_TXRXPEND) {
     Serial.println(F("OP_TXRXPEND, not sending"));
-  }
-  else
-  { 
-    if (gps.checkGpsFix())
-    {
+  } else {
+    if (gps.checkGpsFix()) {
       // Prepare upstream data transmission at the next possible time.
       gps.buildPacket(txBuffer);
+
       LMIC_setTxData2(1, txBuffer, sizeof(txBuffer), 0);
+      //LMIC_setTxData2(1, tstdata, sizeof(tstdata), 0);
       Serial.println(F("Packet queued"));
       digitalWrite(BUILTIN_LED, HIGH);
-    }
-    else
-    {
+    } else {
       //try again in 3 seconds
       os_setTimedCallback(&sendjob, os_getTime() + sec2osticks(3), do_send);
     }
@@ -151,7 +159,7 @@ void setup() {
   os_init();
   // Reset the MAC state. Session and pending data transfers will be discarded.
   LMIC_reset();
-  LMIC_startJoining();
+  //LMIC_startJoining();
   LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
 
 #if defined(CFG_eu868)
@@ -171,20 +179,22 @@ void setup() {
   // TTN recommends the second sub band, 1 in a zero based count.
   // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
   Serial.println("US 915 bands");
-  LMIC_selectSubBand(1);
+  //LMIC_selectSubBand(1);
 #endif
   // Disable link check validation
   LMIC_setLinkCheckMode(0);
 
   // TTN uses SF9 for its RX2 window.
   LMIC.dn2Dr = DR_SF9;
-
-  // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
-  LMIC_setDrTxpow(DR_SF7,14); 
+  // Force 903.9 Mhz
+  forceTxSingleChannelDr(8);
+  //LMIC_setDrTxpow(DR_SF7,14);
 
   do_send(&sendjob);
   pinMode(BUILTIN_LED, OUTPUT);
   digitalWrite(BUILTIN_LED, LOW);
+
+  delay(1000);
 
   Serial.print("Freq: ");
   Serial.println(LMIC.freq);
