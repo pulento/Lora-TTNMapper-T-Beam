@@ -47,6 +47,14 @@ void gps::buildPacket(uint8_t txBuffer[9])
 
   hdopGps = tGps.hdop.value()/10;
   txBuffer[8] = hdopGps & 0xFF;
+
+  String toLog = "";
+  for(size_t i = 0; i < sizeof(txBuffer); i++) {
+    char buffer[3];
+    sprintf(buffer, "%02x", txBuffer[i]);
+    toLog = toLog + String(buffer);
+  }
+  Serial.println(toLog);
 }
 
 bool gps::checkGpsFix()
