@@ -16,7 +16,7 @@
 void do_send(osjob_t* j);
 
 char s[32]; // used to sprintf for Serial output
-static uint8_t tstdata[] = "Hello, world!";
+static uint8_t tstdata[] = {0x50, 0x7E, 0x17, 0x4D, 0xD2, 0x9A, 0x02, 0xF5, 0x0F};
 uint8_t txBuffer[9];
 gps gps;
 
@@ -47,6 +47,17 @@ void forceTxSingleChannelDr(int channel) {
   }
   // Set data rate (SF) and transmit power for uplink
   LMIC_setDrTxpow(DR_SF7, 14);
+}
+
+void logPayload(uint8_t buff[9])
+{
+  String toLog = "";
+  for(size_t i = 0; i < 9; i++) {
+    char buffer[4];
+    sprintf(buffer, "%02X ", buff[i]);
+    toLog = toLog + String(buffer);
+  }
+  Serial.println(toLog);
 }
 
 void onEvent (ev_t ev) {
@@ -133,7 +144,8 @@ void do_send(osjob_t* j) {
     if (gps.checkGpsFix()) {
       // Prepare upstream data transmission at the next possible time.
       gps.buildPacket(txBuffer);
-
+      logPayload(txBuffer);
+      //logPayload(tstdata);
       LMIC_setTxData2(1, txBuffer, sizeof(txBuffer), 0);
       //LMIC_setTxData2(1, tstdata, sizeof(tstdata), 0);
       Serial.println(F("Packet queued"));
