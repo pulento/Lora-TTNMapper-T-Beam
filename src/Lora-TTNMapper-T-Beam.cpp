@@ -2,6 +2,9 @@
 #define CFG_us915 1
 #define CFG_sx1276_radio 1
 #define LMIC_DEBUG_LEVEL 0
+//#define LMIC_USE_INTERRUPTS
+#define DISABLE_PING
+#define DISABLE_BEACONS
 #include <lmic.h>
 #include <hal/hal.h>
 #include <WiFi.h>
@@ -98,6 +101,15 @@ void onEvent (ev_t ev) {
       if (LMIC.txrxFlags & TXRX_ACK) {
         Serial.println(F("Received Ack"));
       }
+      if (LMIC.txrxFlags & TXRX_DNW1) {
+        Serial.println(F("Data on W1"));
+      }
+      if (LMIC.txrxFlags & TXRX_DNW2) {
+        Serial.println(F("Data on W2"));
+      }
+      if (LMIC.txrxFlags & TXRX_PING) {
+        Serial.println(F("Scheduled Ping"));
+      }
       if (LMIC.dataLen) {
         sprintf(s, "Received %i bytes of payload", LMIC.dataLen);
         Serial.println(s);
@@ -144,7 +156,7 @@ void do_send(osjob_t* j) {
     if (gps.checkGpsFix()) {
       // Prepare upstream data transmission at the next possible time.
       gps.buildPacket(txBuffer);
-      logPayload(txBuffer);
+      //logPayload(txBuffer);
       //logPayload(tstdata);
       LMIC_setTxData2(1, txBuffer, sizeof(txBuffer), 0);
       //LMIC_setTxData2(1, tstdata, sizeof(tstdata), 0);
